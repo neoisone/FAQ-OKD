@@ -1,0 +1,149 @@
+FAQ
+
+Q:> Springboot application:
+
+service catalog >> search openjdk >> provide giturl
+spring boot
+    https://github.com/neoisone/spring-test  link of sample test app
+
+
+[root@master-0 ~]# oc new-project cakephp
+[root@master-0 ~]# oc new-app --template=cakephp-mysql-example
+--> Deploying template "openshift/cakephp-mysql-example" to project cakephp
+
+     CakePHP + MySQL (Ephemeral)
+     ---------
+     An example CakePHP application with a MySQL database. For more information about using this template, including OpenShift considerations, see https://github.com/openshift/cakephp-ex/blob/master/README.md.
+     
+
+oc edit dc cakephp-mysql-example
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~SNIP~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~``
+
+        - env:
+          - name: DATABASE_SERVICE_NAME
+            value: mysql
+          - name: DATABASE_ENGINE
+            value: mysql
+          - name: DATABASE_NAME
+            value: default
+          - name: DATABASE_USER
+            valueFrom:
+              secretKeyRef:
+                key: database-user
+                name: cakephp-mysql-example
+          - name: DATABASE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: database-password
+                name: cakephp-mysql-example
+          - name: CAKEPHP_SECRET_TOKEN
+            valueFrom:
+              secretKeyRef:
+                key: cakephp-secret-token
+                name: cakephp-mysql-example
+          - name: CAKEPHP_SECURITY_SALT
+            valueFrom:
+              secretKeyRef:
+                key: cakephp-security-salt
+                name: cakephp-mysql-example
+          - name: CAKEPHP_SECURITY_CIPHER_SEED
+            valueFrom:
+              secretKeyRef:
+                key: cakephp-security-cipher-seed
+                name: cakephp-mysql-example
+          - name: OPCACHE_REVALIDATE_FREQ
+            value: "2"
+          image: docker-registry.default.svc:5000/cakephp/cakephp-mysql-example@sha256:f9f38ee71b5ad8e50d95b93022f9b79fc7cd83fc0af26152572fc93cd61f3967
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+
+Q:   BIND S3 BUCKET
+A: Refer:
+       https://blog.openshift.com/openshift-applications-using-object-storage/
+
+
+https://docs.okd.io/3.11/install_config/persistent_storage/persistent_storage_aws.html#install-config-persistent-storage-persistent-storage-aws
+
+
+Q:  RUN DB INSTANCE:
+A: oc new-app --template=mysql-ephemeral
+   This is for ephemeral storage...backed...if you want to get the persistent storage backed, you need to use `myql-persistent` remember you need a PV already created in your cluster in available state.
+
+Q: How to make  diff web service containers intract with each other? 
+A> it depends if you run teh 2 aaplications containers in a same pod then it will talk locally...via localhosts, other wise it will interct via service IP of different pod....check the env variable for it inside the pod as same as in above cake-php application example.
+
+Q>: How to my web app running inside the container communicate with external DB
+A: same as above if you need to create a service which is pointing to the endpoint(IP of DB app and port) and set it as ENV varible inside the app container for connectivity.
+
+
+Q:> support of MQ on openshift/OKD
+A:> Yes, you can run it suppored MQ by redhat is AMQ
+  # oc create -f --template=amq63-basic                    //for reference example
+
+Q:> Scale nodes?
+A:> Yes you can scale node in OKD
+READ:
+https://docs.openshift.com/container-platform/3.4/install_config/adding_hosts_to_existing_cluster.html#adding-nodes-advanced
+
+
+
+
+Q:> Loadbalacing of app having multiple instance.
+A:> Lbcing is done by services in OKD
+   READ:  https://kubernetes.io/docs/concepts/services-networking/service/
+
+
+Q> How an image in one ENV used in diff ENV
+A: I take this as use of image in one cluster in another cluster.
+   You can do that its a long procedure. you need to create a dockerconfig secrets and from one app and put in diff cluster and link that secret to default service account of any project on 2nd Cluster for pulling the image.
+ 
+For reference I have created a doc:
+   https://pastebin.com/sWcMXfgh
+ 
+Q:> How can i access a pod's environment variables from another pod/container?
+A: > You can specify environment variables to a container in a lot of different ways, the easiest of which is probably through a configmap: https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/#configure-all-key-value-pairs-in-a-configmap-as-container-environment-variables
+
+
+Using a configmap will allow you to set environment variables in one place, and then use them in multiple different deployments.
+READ: to expose pod information:
+   https://kubernetes.io/docs/tasks/inject-data-application/environment-variable-expose-pod-information/
+
+
+
+
+
+
+
+KUMAR SANDEEP QUERY: 
+
+Answer:
+
+The approach I use is to create a Jenkins pipeline whose build step does the following
+
+npm install -d
+npm install --save classlist.js
+$(npm bin)/ng build --prod --build-optimizer
+rm -rf node_modules
+oc start-build angular-5-example --from-dir=. --follow
+You can see that the final step is to kick off a binary build in Openshift passing the contents of the current directory (minus the node_modules which is not needed and rather large). This binary build simply copies the dist folder output of the ng build into a nginx base image plus some configuration files
+
+FROM nginx:1.13.3-alpine
+## Copy our nginx config
+COPY nginx/ /etc/nginx/conf.d/
+## Remove default nginx website
+RUN rm -rf /usr/share/nginx/html/*
+## copy over the artifacts in dist folder to default nginx public folder
+COPY dist/ /usr/share/nginx/html
+EXPOSE 8080
+
+CMD ["nginx", "-g", "daemon off;"]
+A fully working example application which describes how an Angular CLI generated project can be deployed to Openshift 3 can be found at
+
+
+For deatiled description with example READ:
+    https://github.com/petenorth/angular-5-example
+
+
