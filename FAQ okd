@@ -115,12 +115,6 @@ READ: to expose pod information:
 
 
 
-
-
-KUMAR SANDEEP QUERY: 
-
-Answer:
-
 The approach I use is to create a Jenkins pipeline whose build step does the following
 
 npm install -d
